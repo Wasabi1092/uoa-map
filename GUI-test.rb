@@ -6,13 +6,15 @@ class Screen
     def initialize
         @viewpos_x = 0
         @viewpos_y = 0
-        @scale = 1.0
-        @window_width = 500
+        @zoom_scale = 1.0
+        @drawing_size = 500
         @map_width = 1443.0
         @map_height = 814.0
+        @panning = false
         ######################
         load_ui
         load_image
+        setup_mouse_events
     end
 
     def run
@@ -24,7 +26,7 @@ class Screen
     def load_ui
         # create window
         @window = Gtk::Window.new("UoA Map")
-        @window.set_default_size(@window_width, 750)
+        @window.set_default_size(500, 750)
         @window.signal_connect("destroy"){
             Gtk.main_quit
         }
@@ -33,7 +35,7 @@ class Screen
         main_box = Gtk::Box.new(:vertical)
         @window.add(main_box)
         @drawing_area = Gtk::DrawingArea.new
-        @drawing_area.set_size_request(@window_width, @window_width)
+        @drawing_area.set_size_request(@drawing_size, @drawing_size)
         main_box.pack_start(@drawing_area, fill:true, padding:10)
 
         # create a map controls box with buttons to zoom in/out
@@ -66,12 +68,10 @@ class Screen
         @drawing_area.signal_connect("draw") do |widget, cairo|
             display_map(cairo)
         end
-
-        # setup mouse events for panning the map
-        setup_mouse_events
     end
 
     def load_image
+        # if the map image exists, load it into a pixbuf
         if File.exist?("campus-map-cropped.png")
             @map_pixbuf = GdkPixbuf::Pixbuf.new(file:"campus-map-cropped.png")
         else
@@ -80,28 +80,12 @@ class Screen
         end
     end
 
-    def setup_mouse_events
-        @drawing_area.add_events([Gdk::EventMask::BUTTON_PRESS_MASK, Gdk::EventMask::BUTTON_RELEASE_MASK, 
-        Gdk::EventMask::POINTER_MOTION_MASK])
-        @drawing_area.signal_connect("button-press-event") do |widget, event|
-            # print "Mouse press at: #{event.x}, #{event.y}\n"
-            ########################
-        end
-        @drawing_area.signal_connect("button-release-event") do |widget, event|
-            # print "Mouse release at: #{event.x}, #{event.y}\n"
-            ########################
-        end
-        @drawing_area.signal_connect("motion-notify-event") do |widget, event|
-            # print "."
-            ########################
-        end
-    end
-
     def display_map(cairo)
         if @map_pixbuf != nil
+            # translate and zoom according to view position and zoom scale, then display map image
             cairo.save
             cairo.translate(@viewpos_x, @viewpos_y)
-            cairo.scale(@scale*@window_width/@map_height, @scale*@window_width/@map_height)
+            cairo.scale(@zoom_scale, @zoom_scale)
             cairo.set_source_pixbuf(@map_pixbuf, 0, 0)
             cairo.paint
             cairo.restore
@@ -111,23 +95,65 @@ class Screen
         end
     end
 
-    def zoom_in_clicked
-        # increase scale (max 20)
-        @scale = @scale * 4/3
-        if @scale > 5 
-            @scale = 5.0
+    def setup_mouse_events
+        # setup mouse events for panning the map
+        @drawing_area.add_events([Gdk::EventMask::BUTTON_PRESS_MASK, Gdk::EventMask::BUTTON_RELEASE_MASK, 
+        Gdk::EventMask::POINTER_MOTION_MASK])
+        @drawing_area.signal_connect("button-press-event") do |widget, event|
+            @panning = true
+            @prev_mouse_x = event.x
+            @prev_mouse_y = event.y
         end
-        # move position so zooming in on the center, then refresh map
+        @drawing_area.signal_connect("button-release-event") do |widget, event|
+            @panning = false
+        end
+        @drawing_area.signal_connect("motion-notify-event") do |widget, event|
+            if @panning
+                # update view position with mouse movement
+                diff_x = event.x - @prev_mouse_x
+                diff_y = event.y - @prev_mouse_y
+                @prev_mouse_x = event.x
+                @prev_mouse_y = event.y
+                # update view position
+                change_viewpos(diff_x, diff_y)
+                @drawing_area.queue_draw
+            end
+        end
+    end
+
+    def change_viewpos(diff_x, diff_y)
+        @viewpos_x += diff_x
+        @viewpos_y += diff_y
+        # keep the view within the map's edges
+        if @viewpos_x > 0
+            @viewpos_x = 0
+        end
+        if @viewpos_x < -1*@zoom_scale*@map_width + @drawing_size
+            @viewpos_x = -1*@zoom_scale*@map_width + @drawing_size
+        end
+        if @viewpos_y > 0
+            @viewpos_y = 0
+        end
+        if @viewpos_y < -1*@zoom_scale*@map_height + @drawing_size
+            @viewpos_y = -1*@zoom_scale*@map_height + @drawing_size
+        end
+    end
+
+    def zoom_in_clicked
+        # increase scale (max 2), then refresh map #################
+        @zoom_scale = @zoom_scale * 4/3
+        if @zoom_scale > 2
+            @zoom_scale = 2.0
+        end
         @drawing_area.queue_draw
     end
 
     def zoom_out_clicked
-        # decrease scale (min 1)
-        @scale = @scale * 3/4
-        if @scale < 1
-            @scale = 1.0
+        # decrease scale (min 0.615), then refresh map ##################
+        @zoom_scale = @zoom_scale * 3/4
+        if @zoom_scale < 0.615
+            @zoom_scale = 0.615
         end
-        # move position so zooming in on the center, then refresh map
         @drawing_area.queue_draw
     end
 
