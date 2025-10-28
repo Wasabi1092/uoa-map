@@ -12,7 +12,7 @@ require './uoamap/route_generator.rb'
 
 # initialise maps
 def init_map(map="nt-map")
-  # load north terrace map points and connections
+  # load map points and connections
   nt_map = File.read("./maps/#{map}/map_points.json")
   map_data = JSON.parse(nt_map)
   nodes = []
@@ -66,7 +66,29 @@ def init_map(map="nt-map")
       map.add_stairs(start_index, end_index)
     end
   end
+  return map, key_locations
 end
 
+def test_map ()
+  # init_map returns the map object and the key locations which we can use to bind values.
+  map, key_locations = init_map()
 
-init_map()
+  # create a generator object which will hold all of our maps
+  generator = RouteGenerator.new()
+
+  # add the map to the generator and give it a name
+  generator.add_map("north_terrace", map)
+
+  # now we need a test event just to hold the values here
+  test_event = Event.new("Event", "north_terrace", key_locations["hub_w1"], key_locations["darling_west"])
+
+  # then we can pass the event into the generator to calculate the route
+  route = generator.calculate_route(test_event)
+
+  # display function for the route
+  route.display(test_event.end_index)
+
+  # route.paths holds the parents, so you'll need to traverse it backwards if you want the visited nodes
+end
+
+test_map()

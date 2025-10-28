@@ -2,6 +2,9 @@
 
 ## Dependencies
 
+ - Ruby
+
+Gems Required
  - json
  - gtk3
  - cairo

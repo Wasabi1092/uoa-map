@@ -8,6 +8,7 @@ class Route
     @start_index = start_index
   end
   def display(node_end_index)
+    printf "========\n"
     printf "Distance %f units\n", distances[node_end_index]
     index = node_end_index
     order = []
@@ -27,7 +28,7 @@ class Route
         printf "Node %d -> ", item
       end
     end
-    printf "\n========\n"
+    printf "\n========"
   end
   attr_reader :distances
   attr_reader :paths
