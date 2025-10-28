@@ -31,16 +31,15 @@ class Map
       res[index] = (item!=nil) ? item : 0
     end
     @adjacent[node.id] = temp
+    @stairs[node.id] = []
   end
 
   # add_stairs creates a two-way connection between node1 and node2 and defines it as a stair
-  def add_stairs(start_node, end_node)
+  def add_stairs(node1_id, node2_id)
     # start_node is the MapNode that is part of the stair connection
     # end_node is the other MapNode that is part of the stair connection
-    node1_id = start_node.id
-    node2_id = end_node.id
-    @adjacent[node1_id][node2_id],@adjacent[node2_id][node1_id] = node1.adj[node2_id]
-    @stairs[node1_id][node2_id],@stairs[node2_id][node1_id] = 1
+    @stairs[node1_id][node2_id] = 1
+    @stairs[node2_id][node1_id] = 1
   end
 
   # add_exit adds a node to be recognised as an exit on the map
