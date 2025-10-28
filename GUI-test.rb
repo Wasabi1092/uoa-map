@@ -6,7 +6,7 @@ class Screen
     def initialize
         @viewpos_x = 0
         @viewpos_y = 0
-        @zoom_scale = 1.0
+        @zoom_scale = 0.615
         @drawing_size = 500
         @map_width = 1443.0
         @map_height = 814.0
@@ -140,20 +140,33 @@ class Screen
     end
 
     def zoom_in_clicked
-        # increase scale (max 2), then refresh map #################
+        # convert center of view pos to map pos
+        map_pos_x = (@drawing_size / 2.0 - @viewpos_x) / @zoom_scale
+        map_pos_y = (@drawing_size / 2.0 - @viewpos_y) / @zoom_scale
+        # increase scale (max 2)
         @zoom_scale = @zoom_scale * 4/3
         if @zoom_scale > 2
             @zoom_scale = 2.0
         end
+        # convert map pos back to center of view pos
+        @viewpos_x = @drawing_size / 2.0 - map_pos_x*@zoom_scale
+        @viewpos_y = @drawing_size / 2.0 - map_pos_y*@zoom_scale
         @drawing_area.queue_draw
     end
 
     def zoom_out_clicked
-        # decrease scale (min 0.615), then refresh map ##################
+        # convert center of view pos to map pos
+        map_pos_x = (@drawing_size / 2.0 - @viewpos_x) / @zoom_scale
+        map_pos_y = (@drawing_size / 2.0 - @viewpos_y) / @zoom_scale
+        # decrease scale (min 0.615)
         @zoom_scale = @zoom_scale * 3/4
         if @zoom_scale < 0.615
             @zoom_scale = 0.615
         end
+        # convert map pos back to center of view pos
+        @viewpos_x = @drawing_size / 2.0 - map_pos_x*@zoom_scale
+        @viewpos_y = @drawing_size / 2.0 - map_pos_y*@zoom_scale
+        change_viewpos(0, 0) # make sure it doesn't zoom out past the edge of the map
         @drawing_area.queue_draw
     end
 
