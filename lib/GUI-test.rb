@@ -6,10 +6,10 @@ class Screen
     def initialize
         @viewpos_x = 0
         @viewpos_y = 0
-        @zoom_scale = 0.615
+        @zoom_scale = 0.353 # cropped map: 0.615
         @drawing_size = 500
-        @map_width = 1443.0
-        @map_height = 814.0
+        @map_width = 2037.0 # cropped map: 1443
+        @map_height = 1418.0 # cropped map: 814
         @panning = false
         @avoid_steps = false
         @screen_state
@@ -147,11 +147,11 @@ class Screen
 
     def load_image
         # if the map image exists, load it into a pixbuf
-        if File.exist?("campus-map-cropped.png")
-            @map_pixbuf = GdkPixbuf::Pixbuf.new(file:"campus-map-cropped.png")
+        if File.exist?("./maps/nt-map/map.png")
+            @map_pixbuf = GdkPixbuf::Pixbuf.new(file:"./maps/nt-map/map.png")
         else
             @map_pixbuf = nil
-            print "'campus-map-cropped.png' not found\n"
+            print "'./maps/nt-map/map.png' not found\n"
         end
     end
 
@@ -233,10 +233,10 @@ class Screen
         # convert center of view pos to map pos
         map_pos_x = (@drawing_size / 2.0 - @viewpos_x) / @zoom_scale
         map_pos_y = (@drawing_size / 2.0 - @viewpos_y) / @zoom_scale
-        # decrease scale (min 0.615)
+        # decrease scale (min 0.353)
         @zoom_scale = @zoom_scale * 3/4
-        if @zoom_scale < 0.615
-            @zoom_scale = 0.615
+        if @zoom_scale < 0.353
+            @zoom_scale = 0.353
         end
         # convert map pos back to center of view pos
         @viewpos_x = @drawing_size / 2.0 - map_pos_x*@zoom_scale
