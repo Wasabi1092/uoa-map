@@ -1,21 +1,23 @@
 #!/usr/bin/env ruby
 require 'gtk3'
 
+# A class for the GUI and the user's interactions with the program
 class Screen
     public
     def initialize
         @viewpos_x = 0
         @viewpos_y = 0
         @zoom_scale = 0.353 # cropped map: 0.615
-        @drawing_size = 500
+        @drawing_size = 450
         @map_width = 2037.0 # cropped map: 1443
         @map_height = 1418.0 # cropped map: 814
         @panning = false
         @avoid_steps = false
         @screen_state
+        load_ui_styling
         load_main_ui
         load_set_route_ui
-        load_preferences_ui
+        load_settings_ui
         load_image
         setup_mouse_events
     end
@@ -27,10 +29,16 @@ class Screen
     end
 
     private
+    def load_ui_styling
+        css_provider = Gtk::CssProvider.new
+        css_provider.load_from_path("gui-resources/style.css")
+        Gtk::StyleContext.add_provider_for_screen(Gdk::Screen.default, css_provider, Gtk::StyleProvider::PRIORITY_APPLICATION)
+    end
+
     def load_main_ui
         # create window
         @window = Gtk::Window.new("UoA Map")
-        @window.set_default_size(500, 800)
+        @window.set_default_size(450, 800)
         @window.set_resizable(false)
         @window.signal_connect("destroy"){
             Gtk.main_quit
@@ -43,14 +51,19 @@ class Screen
         @window_box.pack_start(@main_box)
         @drawing_area = Gtk::DrawingArea.new
         @drawing_area.set_size_request(@drawing_size, @drawing_size)
-        @main_box.pack_start(@drawing_area, fill:true, padding:10)
+        @main_box.pack_start(@drawing_area, fill:true)
+        separator = Gtk::Separator.new(:horizontal)
+        @main_box.pack_start(separator, fill:true)
 
         # create a map controls box with buttons to zoom in/out
-        controls_box = Gtk::Box.new(:horizontal)
-        @main_box.pack_start(controls_box, fill:true)
-        preferences_button = Gtk::Button.new(label:"Preferences")
-        preferences_button.signal_connect("clicked") {
-            preferences_state
+        controls_vbox = Gtk::Box.new(:vertical)
+        controls_vbox.style_context.add_class("dark-background")
+        @main_box.pack_start(controls_vbox, fill:true)
+        controls_hbox = Gtk::Box.new(:horizontal)
+        controls_vbox.pack_start(controls_hbox, fill:true, padding:10)
+        settings_button = Gtk::Button.new(label:"Settings")
+        settings_button.signal_connect("clicked") {
+            settings_state
         }
         zoom_in_button = Gtk::Button.new(label:"+")
         zoom_in_button.signal_connect("clicked") {
@@ -64,10 +77,12 @@ class Screen
         set_route_button.signal_connect("clicked") {
             set_route_state
         }
-        controls_box.pack_start(preferences_button, expand:true, fill:true, padding:20)
-        controls_box.pack_start(zoom_in_button, expand:true, padding:10)
-        controls_box.pack_start(zoom_out_button, expand:true, padding:10)
-        controls_box.pack_start(set_route_button, expand:true, fill:true, padding:20)
+        controls_hbox.pack_start(settings_button, expand:true, fill:true, padding:10)
+        controls_hbox.pack_start(zoom_in_button, expand:true, padding:5)
+        controls_hbox.pack_start(zoom_out_button, expand:true, padding:5)
+        controls_hbox.pack_start(set_route_button, expand:true, fill:true, padding:10)
+        controls_separator = Gtk::Separator.new(:horizontal)
+        @main_box.pack_start(controls_separator)
 
         # setup drawing the map in the DrawingArea
         @drawing_area.signal_connect("draw") do |widget, cairo|
@@ -80,25 +95,29 @@ class Screen
         @set_route_box = Gtk::Box.new(:vertical)
         @main_box.pack_start(@set_route_box, fill:true, padding:10)
         # title 'Set Route'
-        set_route_label = Gtk::Label.new
-        set_route_label.set_markup("<span weight='bold' size='15000'>Set Route</span>")
+        set_route_label = Gtk::Label.new("Select Route Start/End")
+        set_route_label.style_context.add_class("title")
         @set_route_box.pack_start(set_route_label, expand:true, fill:true, padding:10)
         # location label and combo box
         @location_box = Gtk::Box.new(:horizontal)
+        @location_box.set_halign(:center)
         @set_route_box.pack_start(@location_box, fill:true, padding:10)
-        location_label = Gtk::Label.new("Location:")
-        @location_box.pack_start(location_label, expand:true, fill:true, padding:10)
+        location_label = Gtk::Label.new("     Location:")
+        location_label.style_context.add_class("bold")
+        @location_box.pack_start(location_label, expand:true, padding:10)
         location_combo = Gtk::ComboBoxText.new
         @location_box.pack_start(location_combo, expand:true, fill:true, padding: 10)
-        location_combo.append_text("[Choose location]")
+        location_combo.append_text("[Choose location]     ")
         location_combo.append_text("Location 1") ###########
         location_combo.append_text("Location 2")
         location_combo.set_active(0)
         # destination label and combo box
         @destination_box = Gtk::Box.new(:horizontal)
-        @set_route_box.pack_start(@destination_box, fill:true, padding:10)
+        @destination_box.set_halign(:center)
+        @set_route_box.pack_start(@destination_box, padding:10)
         destination_label = Gtk::Label.new("Destination:")
-        @destination_box.pack_start(destination_label, expand:true, fill:true, padding:10)
+        destination_label.style_context.add_class("bold")
+        @destination_box.pack_start(destination_label, expand:true, padding:10)
         destination_combo = Gtk::ComboBoxText.new
         @destination_box.pack_start(destination_combo, expand:true, fill:true, padding: 10)
         destination_combo.append_text("[Choose destination]")
@@ -107,7 +126,7 @@ class Screen
         destination_combo.set_active(0)
         # request route button
         req_route_box = Gtk::Box.new(:horizontal)
-        @set_route_box.pack_start(req_route_box, fill:true, padding:20)
+        @set_route_box.pack_start(req_route_box, fill:true, padding:30)
         req_route_button = Gtk::Button.new(label:"Request Route")
         req_route_button.signal_connect("clicked") {
             if location_combo.active != 0 && destination_combo.active != 0
@@ -117,27 +136,29 @@ class Screen
         req_route_box.pack_start(req_route_button, expand:true)
     end
 
-    def load_preferences_ui
-        # create the preferences box, with the title 'Preferences'
-        @preferences_box = Gtk::Box.new(:vertical)
-        preferences_label = Gtk::Label.new
-        preferences_label.set_markup("<span weight='bold' size='15000'>Preferences</span>")
-        @preferences_box.pack_start(preferences_label, expand:true, fill:true, padding:20)
-        # create another box in preferences, with a label and switch for the 'avoid steps' toggle, and a done button
+    def load_settings_ui
+        # create the settings box, with the title 'Settings'
+        @settings_box = Gtk::Box.new(:vertical)
+        settings_label = Gtk::Label.new("Settings")
+        settings_label.style_context.add_class("title")
+        @settings_box.pack_start(settings_label, expand:true, fill:true, padding:30)
+        # create another box in settings, with a label and switch for the 'avoid steps' toggle, and a done button
         avoid_steps_box = Gtk::Box.new(:horizontal)
-        @preferences_box.pack_start(avoid_steps_box, fill:true, padding:10)
-        avoid_steps_label = Gtk::Label.new("Avoid Steps:")
+        avoid_steps_box.set_halign(:center)
+        @settings_box.pack_start(avoid_steps_box, expand:true, fill:true, padding:10)
+        avoid_steps_label = Gtk::Label.new("Avoid Steps")
+        avoid_steps_label.style_context.add_class("bold")
         avoid_steps_switch = Gtk::Switch.new
         avoid_steps_switch.signal_connect('state-set') do |widget, state|
             @avoid_steps = state
             false # to allow default behaviour (colour change when switched)
         end
-        avoid_steps_box.pack_start(avoid_steps_label, fill:true, padding:10)
-        avoid_steps_box.pack_start(avoid_steps_switch, fill:true, padding:10)
-        # create a 'return to map' button at the bottom of the preferences box
+        avoid_steps_box.pack_start(avoid_steps_label, padding:20)
+        avoid_steps_box.pack_start(avoid_steps_switch, padding:20)
+        # create a 'return to map' button at the bottom of the settings box
         return_box = Gtk::Box.new(:horizontal)
-        return_box.set_margin_top(625)
-        @preferences_box.pack_start(return_box, fill:true)
+        return_box.set_margin_top(580)
+        @settings_box.pack_start(return_box, fill:true)
         return_button = Gtk::Button.new(label:"Return to Map")
         return_button.signal_connect("clicked") {
             set_route_state
@@ -245,19 +266,19 @@ class Screen
         @drawing_area.queue_draw
     end
 
-    def preferences_state
-        @screen_state = "Preferences"
+    def settings_state
+        @screen_state = "settings"
         if @window_box.children.include?(@main_box)
             @window_box.remove(@main_box)
         end
-        @window_box.pack_start(@preferences_box)
+        @window_box.pack_start(@settings_box)
         @window.show_all
     end
 
     def set_route_state
         @screen_state = "Set Route"
-        if @window_box.children.include?(@preferences_box)
-            @window_box.remove(@preferences_box)
+        if @window_box.children.include?(@settings_box)
+            @window_box.remove(@settings_box)
         end
         if !@window_box.children.include?(@main_box)
             @window_box.pack_start(@main_box)
@@ -269,7 +290,7 @@ class Screen
     end
 
     def request_route(location, destination)
-        print "Requesting route from #{location} to #{destination}\n"
+        print "Requesting route from #{location} to #{destination}. (avoid_steps = #{@avoid_steps})\n"
         ######################
     end
 end
