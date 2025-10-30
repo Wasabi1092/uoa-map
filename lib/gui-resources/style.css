@@ -25,6 +25,7 @@ switch {
     border: 2px solid black;
 }
 .title-text {
+    color:cornflowerblue;
     font-weight: bold;
     font-size: 20px;
 }

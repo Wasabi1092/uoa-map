@@ -9,7 +9,8 @@ class Screen
         @key_locations = key_locations
         @generator = generator
         @avoid_steps = false
-        @screen_state
+        @location
+        @destination
         @current_event = nil
         @current_route = nil
         # map related variables
@@ -24,6 +25,7 @@ class Screen
         load_ui_styling
         load_main_ui
         load_set_route_ui
+        load_preview_ui
         load_settings_ui
         load_image
         setup_mouse_events
@@ -54,12 +56,13 @@ class Screen
         header_bar.style_context.add_class("header-bar")
         @window.set_titlebar(header_bar)
 
+        # create the main boxes
         @window_box = Gtk::Box.new(:vertical)
         @window.add(@window_box)
-        
-        # create the main box with a DrawingArea at the top for the map
         @main_box = Gtk::Box.new(:vertical)
         @window_box.pack_start(@main_box)
+
+        # create a DrawingArea for the map
         @drawing_area = Gtk::DrawingArea.new
         @drawing_area.set_size_request(@drawing_size, @drawing_size)
         @main_box.pack_start(@drawing_area, fill:true)
@@ -76,10 +79,12 @@ class Screen
         settings_button.signal_connect("clicked") { settings_state }
         zoom_in_button = Gtk::Button.new(label:"+")
         zoom_in_button.signal_connect("clicked") { zoom_in_clicked }
-        zoom_out_button = Gtk::Button.new(label:"-")
+        zoom_out_button = Gtk::Button.new(label:"–")
         zoom_out_button.signal_connect("clicked") { zoom_out_clicked }
         set_route_button = Gtk::Button.new(label:"Set Route")
-        set_route_button.signal_connect("clicked") { set_route_state }
+        set_route_button.signal_connect("clicked") {
+            set_route_state
+        }
         controls_hbox.pack_start(settings_button, expand:true, fill:true, padding:10)
         controls_hbox.pack_start(zoom_in_button, expand:true, padding:5)
         controls_hbox.pack_start(zoom_out_button, expand:true, padding:5)
@@ -100,7 +105,7 @@ class Screen
         # title 'Set Route'
         set_route_label = Gtk::Label.new("Select Route Start/End")
         set_route_label.style_context.add_class("title-text")
-        @set_route_box.pack_start(set_route_label, expand:true, fill:true, padding:10)
+        @set_route_box.pack_start(set_route_label, expand:true, fill:true, padding:20)
         # location label and combo box
         @location_box = Gtk::Box.new(:horizontal)
         @location_box.set_halign(:center)
@@ -133,12 +138,42 @@ class Screen
         @set_route_box.pack_start(req_route_box, fill:true, padding:30)
         req_route_button = Gtk::Button.new(label:"Request Route")
         req_route_button.signal_connect("clicked") {
-            if (location_combo.active != 0) && (destination_combo.active != 0) \
-                && (location_combo.active != destination_combo.active)
-                request_route(location_combo.active_text, destination_combo.active_text)
+            if (location_combo.active != 0) && (destination_combo.active != 0) && (location_combo.active != destination_combo.active)
+                @location = location_combo.active_text
+                @destination = destination_combo.active_text
+                request_route
+                if @current_event && @current_route then preview_state end
             end
         }
         req_route_box.pack_start(req_route_button, expand:true)
+    end
+
+    def load_preview_ui
+        # create the preview box
+        @preview_box = Gtk::Box.new(:vertical)
+        @main_box.pack_start(@preview_box, fill:true, padding:10)
+        # title 'Route Preview'
+        preview_label = Gtk::Label.new("Route Preview")
+        preview_label.style_context.add_class("title-text")
+        @preview_box.pack_start(preview_label, expand:true, fill:true, padding:20)
+        # start, end and distance labels
+        @start_label = Gtk::Label.new
+        @start_label.style_context.add_class("bold")
+        @preview_box.pack_start(@start_label, expand:true, fill:true, padding:5)
+        @end_label = Gtk::Label.new
+        @end_label.style_context.add_class("bold")
+        @preview_box.pack_start(@end_label, expand:true, fill:true, padding:5)
+        @distance_label = Gtk::Label.new
+        @distance_label.style_context.add_class("bold")
+        @preview_box.pack_start(@distance_label, expand:true, fill:true, padding:5)
+        # cancel button
+        cancel_box = Gtk::Box.new(:horizontal)
+        @preview_box.pack_start(cancel_box, fill:true, padding:15)
+        cancel_button = Gtk::Button.new(label:"Cancel")
+        cancel_button.signal_connect("clicked") {
+            set_route_state
+        }
+        cancel_box.pack_start(cancel_button, expand:true)
     end
 
     def load_settings_ui
@@ -224,15 +259,11 @@ class Screen
         @viewpos_x += diff_x
         @viewpos_y += diff_y
         # keep the view within the map's edges
-        if @viewpos_x > 0
-            @viewpos_x = 0
-        end
+        if @viewpos_x > 0 then @viewpos_x = 0 end
         if @viewpos_x < -1*@zoom_scale*@map_width + @drawing_size
             @viewpos_x = -1*@zoom_scale*@map_width + @drawing_size
         end
-        if @viewpos_y > 0
-            @viewpos_y = 0
-        end
+        if @viewpos_y > 0 then @viewpos_y = 0 end
         if @viewpos_y < -1*@zoom_scale*@map_height + @drawing_size
             @viewpos_y = -1*@zoom_scale*@map_height + @drawing_size
         end
@@ -244,9 +275,7 @@ class Screen
         map_pos_y = (@drawing_size / 2.0 - @viewpos_y) / @zoom_scale
         # increase scale (max 2)
         @zoom_scale = @zoom_scale * 4/3
-        if @zoom_scale > 2
-            @zoom_scale = 2.0
-        end
+        if @zoom_scale > 2 then @zoom_scale = 2.0 end
         # convert map pos back to center of view pos
         @viewpos_x = @drawing_size / 2.0 - map_pos_x*@zoom_scale
         @viewpos_y = @drawing_size / 2.0 - map_pos_y*@zoom_scale
@@ -259,9 +288,7 @@ class Screen
         map_pos_y = (@drawing_size / 2.0 - @viewpos_y) / @zoom_scale
         # decrease scale (min 0.318)
         @zoom_scale = @zoom_scale * 3/4
-        if @zoom_scale < 0.318
-            @zoom_scale = 0.318
-        end
+        if @zoom_scale < 0.318 then @zoom_scale = 0.318 end
         # convert map pos back to center of view pos
         @viewpos_x = @drawing_size / 2.0 - map_pos_x*@zoom_scale
         @viewpos_y = @drawing_size / 2.0 - map_pos_y*@zoom_scale
@@ -270,34 +297,37 @@ class Screen
     end
 
     def settings_state
-        @screen_state = "settings"
-        if @window_box.children.include?(@main_box)
-            @window_box.remove(@main_box)
-        end
+        if @window_box.children.include?(@main_box) then @window_box.remove(@main_box) end
         @window_box.pack_start(@settings_box)
         @window.show_all
     end
 
     def set_route_state
-        @screen_state = "Set Route"
-        if @window_box.children.include?(@settings_box)
-            @window_box.remove(@settings_box)
-        end
-        if !@window_box.children.include?(@main_box)
-            @window_box.pack_start(@main_box)
-        end
-        if !@main_box.children.include?(@set_route_box)
-            @window_box.pack_start(@set_route_box)
-        end
+        @current_event = nil
+        @current_route = nil
+        if @window_box.children.include?(@settings_box) then @window_box.remove(@settings_box) end
+        if @main_box.children.include?(@preview_box) then @main_box.remove(@preview_box) end
+        if !@window_box.children.include?(@main_box) then @window_box.pack_start(@main_box) end
+        if !@main_box.children.include?(@set_route_box) then @main_box.pack_start(@set_route_box) end
         @window.show_all
     end
 
-    def request_route(location, destination)
-        print "\nRequesting route from #{location} to #{destination}. (avoid_steps = #{@avoid_steps})\n"
+    def preview_state
+        if @main_box.children.include?(@set_route_box) then @main_box.remove(@set_route_box) end
+        if !@main_box.children.include?(@preview_box) then @main_box.pack_start(@preview_box) end
+        @start_label.text = "Start:  #{@location}\n"
+        @end_label.text = "End:  #{@destination}\n"
+        distance = @current_route.distances[@current_event.end_index].round
+        if distance < 1000 then @distance_label.text = "Estimated Distance:  #{} m\n"
+        else @distance_label.text = "Distance:  #{(distance/1000.0).round(2)} km\n" end
+    end
+
+    def request_route
+        print "\nRequesting route from #{@location} to #{@destination}. (avoid_steps = #{@avoid_steps})\n"
         ################ currently doesnt use avoid_steps
         # find all entrance ids for the selected start and end
-        location_ids = @keywords[location]
-        destination_ids = @keywords[destination]
+        location_ids = @keywords[@location]
+        destination_ids = @keywords[@destination]
         # generate a route for each location/destination pair
         events = []
         routes = []
@@ -325,7 +355,5 @@ class Screen
         fastest_route.display(fastest_event.end_index)
         @current_event = fastest_event
         @current_route = fastest_route
-        ################
-        # change state to 'preview route'
     end
 end
