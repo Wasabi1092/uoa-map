@@ -7,6 +7,7 @@ require './uoamap/map_node.rb'
 require './uoamap/route.rb'
 require './uoamap/string.rb'
 require './uoamap/route_generator.rb'
+require './uoamap/screen.rb'
 
 
 
@@ -69,6 +70,12 @@ def init_map(map="nt-map")
   return map, key_locations
 end
 
+def load_keywords(map="nt-map")
+  keywords_file = File.read("./maps/#{map}/keywords.json")
+  keywords = JSON.parse(keywords_file)
+  return keywords
+end
+
 def test_map ()
   # init_map returns the map object and the key locations which we can use to bind values.
   map, key_locations = init_map()
@@ -91,4 +98,21 @@ def test_map ()
   # route.paths holds the parents, so you'll need to traverse it backwards if you want the visited nodes
 end
 
-test_map()
+# setup keywords, map and route generator, then run the GUI
+def run_GUI()
+  # load keywords from file
+  keywords = load_keywords()
+
+  # setup map and route generator
+  map, key_locations = init_map()
+  generator = RouteGenerator.new()
+  generator.add_map("north_terrace", map)
+
+  # create screen with keywords, key locations and route generator so it can use the generator
+  Gtk.init
+  screen = Screen.new(keywords, key_locations, generator)
+  screen.run
+end
+
+# test_map()
+run_GUI()

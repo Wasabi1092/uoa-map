@@ -1,19 +1,24 @@
-#!/usr/bin/env ruby
 require 'gtk3'
 
 # A class for the GUI and the user's interactions with the program
 class Screen
     public
-    def initialize
+    def initialize(keywords, key_locations, generator)
+        # logic related variables
+        @keywords = keywords
+        @key_locations = key_locations
+        @generator = generator
+        @avoid_steps = false
+        @screen_state
+        # map related variables
         @viewpos_x = 0
         @viewpos_y = 0
-        @zoom_scale = 0.353 # cropped map: 0.615
+        @zoom_scale = 0.318
         @drawing_size = 450
         @map_width = 2037.0 # cropped map: 1443
         @map_height = 1418.0 # cropped map: 814
         @panning = false
-        @avoid_steps = false
-        @screen_state
+        # UI setup
         load_ui_styling
         load_main_ui
         load_set_route_ui
@@ -254,10 +259,10 @@ class Screen
         # convert center of view pos to map pos
         map_pos_x = (@drawing_size / 2.0 - @viewpos_x) / @zoom_scale
         map_pos_y = (@drawing_size / 2.0 - @viewpos_y) / @zoom_scale
-        # decrease scale (min 0.353)
+        # decrease scale (min 0.318)
         @zoom_scale = @zoom_scale * 3/4
-        if @zoom_scale < 0.353
-            @zoom_scale = 0.353
+        if @zoom_scale < 0.318
+            @zoom_scale = 0.318
         end
         # convert map pos back to center of view pos
         @viewpos_x = @drawing_size / 2.0 - map_pos_x*@zoom_scale
@@ -292,9 +297,10 @@ class Screen
     def request_route(location, destination)
         print "Requesting route from #{location} to #{destination}. (avoid_steps = #{@avoid_steps})\n"
         ######################
+        # use keywords to find all key locations for this keyword
+        # make an event for each
+        # pass each event to RouteGenerator
+        # find the route with the lowest time estimate (?)
+        # change state to 'preview route'
     end
 end
-
-Gtk.init
-screen = Screen.new
-screen.run
