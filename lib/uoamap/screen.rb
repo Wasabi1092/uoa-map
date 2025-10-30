@@ -317,8 +317,8 @@ class Screen
         if !@main_box.children.include?(@preview_box) then @main_box.pack_start(@preview_box) end
         @start_label.text = "Start:  #{@location}\n"
         @end_label.text = "End:  #{@destination}\n"
-        distance = @current_route.distances[@current_event.end_index].round
-        if distance < 1000 then @distance_label.text = "Estimated Distance:  #{} m\n"
+        distance = @current_route.distances[@current_event.end_index]
+        if distance < 1000 then @distance_label.text = "Estimated Distance:  #{distance.round} m\n"
         else @distance_label.text = "Distance:  #{(distance/1000.0).round(2)} km\n" end
     end
 

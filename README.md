@@ -27,12 +27,14 @@ gem install json
 
 ## Running the GUI
 ```bash
-ruby GUI-test.rb
+cd lib
+
+ruby uoamap.rb
 ```
 
 ## Testing the map generation
 ```bash
 cd lib
 
-ruby uoamap.rb
+ruby maptest.rb
 ```
