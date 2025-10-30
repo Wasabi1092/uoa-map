@@ -10,6 +10,8 @@ class Screen
         @generator = generator
         @avoid_steps = false
         @screen_state
+        @current_event = nil
+        @current_route = nil
         # map related variables
         @viewpos_x = 0
         @viewpos_y = 0
@@ -42,16 +44,20 @@ class Screen
 
     def load_main_ui
         # create window
-        @window = Gtk::Window.new("UoA Map")
+        @window = Gtk::Window.new
         @window.set_default_size(450, 800)
         @window.set_resizable(false)
-        @window.signal_connect("destroy"){
-            Gtk.main_quit
-        }
+        @window.signal_connect("destroy"){ Gtk.main_quit }
+        header_bar = Gtk::HeaderBar.new
+        header_bar.set_show_close_button(true)
+        header_bar.title = "UoA Map"
+        header_bar.style_context.add_class("header-bar")
+        @window.set_titlebar(header_bar)
+
         @window_box = Gtk::Box.new(:vertical)
         @window.add(@window_box)
         
-        # create the main box with a DrawingArea for the map at the top
+        # create the main box with a DrawingArea at the top for the map
         @main_box = Gtk::Box.new(:vertical)
         @window_box.pack_start(@main_box)
         @drawing_area = Gtk::DrawingArea.new
@@ -62,26 +68,18 @@ class Screen
 
         # create a map controls box with buttons to zoom in/out
         controls_vbox = Gtk::Box.new(:vertical)
-        controls_vbox.style_context.add_class("dark-background")
+        controls_vbox.style_context.add_class("slategray-background")
         @main_box.pack_start(controls_vbox, fill:true)
         controls_hbox = Gtk::Box.new(:horizontal)
         controls_vbox.pack_start(controls_hbox, fill:true, padding:10)
         settings_button = Gtk::Button.new(label:"Settings")
-        settings_button.signal_connect("clicked") {
-            settings_state
-        }
+        settings_button.signal_connect("clicked") { settings_state }
         zoom_in_button = Gtk::Button.new(label:"+")
-        zoom_in_button.signal_connect("clicked") {
-            zoom_in_clicked
-        }
+        zoom_in_button.signal_connect("clicked") { zoom_in_clicked }
         zoom_out_button = Gtk::Button.new(label:"-")
-        zoom_out_button.signal_connect("clicked") {
-            zoom_out_clicked
-        }
+        zoom_out_button.signal_connect("clicked") { zoom_out_clicked }
         set_route_button = Gtk::Button.new(label:"Set Route")
-        set_route_button.signal_connect("clicked") {
-            set_route_state
-        }
+        set_route_button.signal_connect("clicked") { set_route_state }
         controls_hbox.pack_start(settings_button, expand:true, fill:true, padding:10)
         controls_hbox.pack_start(zoom_in_button, expand:true, padding:5)
         controls_hbox.pack_start(zoom_out_button, expand:true, padding:5)
@@ -89,19 +87,19 @@ class Screen
         controls_separator = Gtk::Separator.new(:horizontal)
         @main_box.pack_start(controls_separator)
 
-        # setup drawing the map in the DrawingArea
+        # setup map display in the DrawingArea
         @drawing_area.signal_connect("draw") do |widget, cairo|
             display_map(cairo)
         end
     end
 
     def load_set_route_ui
-        # create the set route box, with combo boxes for location and destination, and a button to request route
+        # create the set route box
         @set_route_box = Gtk::Box.new(:vertical)
         @main_box.pack_start(@set_route_box, fill:true, padding:10)
         # title 'Set Route'
         set_route_label = Gtk::Label.new("Select Route Start/End")
-        set_route_label.style_context.add_class("title")
+        set_route_label.style_context.add_class("title-text")
         @set_route_box.pack_start(set_route_label, expand:true, fill:true, padding:10)
         # location label and combo box
         @location_box = Gtk::Box.new(:horizontal)
@@ -113,8 +111,6 @@ class Screen
         location_combo = Gtk::ComboBoxText.new
         @location_box.pack_start(location_combo, expand:true, fill:true, padding: 10)
         location_combo.append_text("[Choose location]     ")
-        location_combo.append_text("Location 1") ###########
-        location_combo.append_text("Location 2")
         location_combo.set_active(0)
         # destination label and combo box
         @destination_box = Gtk::Box.new(:horizontal)
@@ -126,15 +122,19 @@ class Screen
         destination_combo = Gtk::ComboBoxText.new
         @destination_box.pack_start(destination_combo, expand:true, fill:true, padding: 10)
         destination_combo.append_text("[Choose destination]")
-        destination_combo.append_text("Destination 1") ###########
-        destination_combo.append_text("Destination 2")
         destination_combo.set_active(0)
+        # fill combo boxes with the location keywords
+        @keywords.keys.sort.each do |key|
+            location_combo.append_text(key)
+            destination_combo.append_text(key)
+        end
         # request route button
         req_route_box = Gtk::Box.new(:horizontal)
         @set_route_box.pack_start(req_route_box, fill:true, padding:30)
         req_route_button = Gtk::Button.new(label:"Request Route")
         req_route_button.signal_connect("clicked") {
-            if location_combo.active != 0 && destination_combo.active != 0
+            if (location_combo.active != 0) && (destination_combo.active != 0) \
+                && (location_combo.active != destination_combo.active)
                 request_route(location_combo.active_text, destination_combo.active_text)
             end
         }
@@ -145,7 +145,7 @@ class Screen
         # create the settings box, with the title 'Settings'
         @settings_box = Gtk::Box.new(:vertical)
         settings_label = Gtk::Label.new("Settings")
-        settings_label.style_context.add_class("title")
+        settings_label.style_context.add_class("title-text")
         @settings_box.pack_start(settings_label, expand:true, fill:true, padding:30)
         # create another box in settings, with a label and switch for the 'avoid steps' toggle, and a done button
         avoid_steps_box = Gtk::Box.new(:horizontal)
@@ -165,9 +165,7 @@ class Screen
         return_box.set_margin_top(580)
         @settings_box.pack_start(return_box, fill:true)
         return_button = Gtk::Button.new(label:"Return to Map")
-        return_button.signal_connect("clicked") {
-            set_route_state
-        }
+        return_button.signal_connect("clicked") { set_route_state }
         return_box.pack_start(return_button, expand:true)
     end
 
@@ -295,12 +293,39 @@ class Screen
     end
 
     def request_route(location, destination)
-        print "Requesting route from #{location} to #{destination}. (avoid_steps = #{@avoid_steps})\n"
-        ######################
-        # use keywords to find all key locations for this keyword
-        # make an event for each
-        # pass each event to RouteGenerator
-        # find the route with the lowest time estimate (?)
+        print "\nRequesting route from #{location} to #{destination}. (avoid_steps = #{@avoid_steps})\n"
+        ################ currently doesnt use avoid_steps
+        # find all entrance ids for the selected start and end
+        location_ids = @keywords[location]
+        destination_ids = @keywords[destination]
+        # generate a route for each location/destination pair
+        events = []
+        routes = []
+        location_ids.each do |loc_id|
+            destination_ids.each do |dest_id|
+                event = Event.new("Route request", "north_terrace", @key_locations[loc_id], @key_locations[dest_id])
+                route = @generator.calculate_route(event)
+                if route
+                    events.push(event)
+                    routes.push(route)
+                end
+            end
+        end
+        # find the route with the lowest distance estimate
+        fastest_event = events[0]
+        fastest_route = routes[0]
+        routes.each_with_index do |route, idx|
+            print "Route #{idx+1} distance: #{route.distances[events[idx].end_index]}\n"
+            if route.distances[events[idx].end_index] < fastest_route.distances[events[idx].end_index]
+                fastest_event = events[idx]
+                fastest_route = route
+            end
+        end
+        print "Displaying fastest route\n"
+        fastest_route.display(fastest_event.end_index)
+        @current_event = fastest_event
+        @current_route = fastest_route
+        ################
         # change state to 'preview route'
     end
 end
