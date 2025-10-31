@@ -106,7 +106,6 @@ class Screen
     def load_set_route_ui
         # create the set route box
         @set_route_box = Gtk::Box.new(:vertical)
-        @main_box.pack_start(@set_route_box, fill:true, padding:10)
         # title 'Set Route'
         set_route_label = Gtk::Label.new("Select Route Start/End")
         set_route_label.style_context.add_class("title-text")
@@ -149,12 +148,12 @@ class Screen
     def load_preview_ui
         # create the preview box
         @preview_box = Gtk::Box.new(:vertical)
-        @main_box.pack_start(@preview_box, fill:true, padding:10)
+        @main_box.pack_start(@preview_box, fill:true)
         # title 'Route Preview'
         preview_label = Gtk::Label.new("Route Preview")
         preview_label.style_context.add_class("title-text")
         @preview_box.pack_start(preview_label, expand:true, fill:true, padding:20)
-        # start, end and distance labels
+        # start, end, distance and time estimate labels
         @start_label = Gtk::Label.new
         @start_label.style_context.add_class("bold")
         @preview_box.pack_start(@start_label, expand:true, fill:true, padding:5)
@@ -164,6 +163,9 @@ class Screen
         @distance_label = Gtk::Label.new
         @distance_label.style_context.add_class("bold")
         @preview_box.pack_start(@distance_label, expand:true, fill:true, padding:5)
+        @time_label = Gtk::Label.new
+        @time_label.style_context.add_class("bold")
+        @preview_box.pack_start(@time_label, expand:true, fill:true, padding:5)
         # cancel button
         cancel_box = Gtk::Box.new(:horizontal)
         @preview_box.pack_start(cancel_box, fill:true, padding:15)
@@ -440,11 +442,14 @@ class Screen
     # show the UI for the 'preview' page, hiding other pages if necessary.
     def show_preview
         if @main_box.children.include?(@set_route_box) then @main_box.remove(@set_route_box) end
-        if !@main_box.children.include?(@preview_box) then @main_box.pack_start(@preview_box) end
         @start_label.text = "Start:  #{@location}\n"
         @end_label.text = "End:  #{@destination}\n"
-        distance = @current_route.distances[@current_event.end_index]
+        distance = @current_route.distances[@current_event.end_index] / 3.0 # roughly (need to find pixel to distance scale)
         if distance < 1000 then @distance_label.text = "Estimated Distance:  #{distance.round} m\n"
         else @distance_label.text = "Distance:  #{(distance/1000.0).round(2)} km\n" end
+        walking_speed = 1.4 # m/s
+        minutes = distance / walking_speed / 60 # minutes = distance / speed / 60
+        @time_label.text = "Time Estimate: #{minutes.round} minutes\n"
+        if !@main_box.children.include?(@preview_box) then @main_box.pack_start(@preview_box) end
     end
 end
