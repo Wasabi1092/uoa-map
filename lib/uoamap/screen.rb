@@ -444,11 +444,12 @@ class Screen
         if @main_box.children.include?(@set_route_box) then @main_box.remove(@set_route_box) end
         @start_label.text = "Start:  #{@location}\n"
         @end_label.text = "End:  #{@destination}\n"
-        distance = @current_route.distances[@current_event.end_index] / 3.0 # roughly (need to find pixel to distance scale)
+        # metres = pixels / 3 is roughly same as apple maps estimates (don't have actual pixel to distance scale)
+        distance = @current_route.distances[@current_event.end_index] / 3.0
         if distance < 1000 then @distance_label.text = "Estimated Distance:  #{distance.round} m\n"
         else @distance_label.text = "Distance:  #{(distance/1000.0).round(2)} km\n" end
         walking_speed = 1.4 # m/s
-        minutes = distance / walking_speed / 60 # minutes = distance / speed / 60
+        minutes = distance / walking_speed / 60
         @time_label.text = "Time Estimate: #{minutes.round} minutes\n"
         if !@main_box.children.include?(@preview_box) then @main_box.pack_start(@preview_box) end
     end
