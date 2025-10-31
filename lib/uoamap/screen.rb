@@ -156,16 +156,16 @@ class Screen
         # start, end, distance and time estimate labels
         @start_label = Gtk::Label.new
         @start_label.style_context.add_class("bold")
-        @preview_box.pack_start(@start_label, expand:true, fill:true, padding:5)
+        @preview_box.pack_start(@start_label, expand:true, fill:true)
         @end_label = Gtk::Label.new
         @end_label.style_context.add_class("bold")
-        @preview_box.pack_start(@end_label, expand:true, fill:true, padding:5)
+        @preview_box.pack_start(@end_label, expand:true, fill:true)
         @distance_label = Gtk::Label.new
         @distance_label.style_context.add_class("bold")
-        @preview_box.pack_start(@distance_label, expand:true, fill:true, padding:5)
+        @preview_box.pack_start(@distance_label, expand:true, fill:true)
         @time_label = Gtk::Label.new
         @time_label.style_context.add_class("bold")
-        @preview_box.pack_start(@time_label, expand:true, fill:true, padding:5)
+        @preview_box.pack_start(@time_label, expand:true, fill:true)
         # cancel button
         cancel_box = Gtk::Box.new(:horizontal)
         @preview_box.pack_start(cancel_box, fill:true, padding:15)
