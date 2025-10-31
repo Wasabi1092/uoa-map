@@ -32,6 +32,16 @@ switch {
 .bold {
     font-weight: bold;
 }
+button.overlay-button {
+    min-height: 40px;
+    min-width: 20px;
+    border-radius: 30px;
+    border: 3px solid black;
+}
+.large-symbol {
+    font-weight: bold;
+    font-size: 25px;
+}
 .slategray-background {
     background-color: slategray;
 }

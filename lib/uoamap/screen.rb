@@ -66,33 +66,63 @@ class Screen
         @main_box = Gtk::Box.new(:vertical)
         @window_box.pack_start(@main_box)
 
+        overlay = Gtk::Overlay.new
+        @main_box.pack_start(overlay)
+
         # create a DrawingArea for the map
         @drawing_area = Gtk::DrawingArea.new
         @drawing_area.set_size_request(@drawing_size, @drawing_size)
-        @main_box.pack_start(@drawing_area, fill:true)
-        separator = Gtk::Separator.new(:horizontal)
-        @main_box.pack_start(separator, fill:true)
+        overlay.add(@drawing_area)
 
-        # create a map controls box with buttons to zoom in/out
-        controls_vbox = Gtk::Box.new(:vertical)
-        controls_vbox.style_context.add_class("slategray-background")
-        @main_box.pack_start(controls_vbox, fill:true)
-        controls_hbox = Gtk::Box.new(:horizontal)
-        controls_vbox.pack_start(controls_hbox, fill:true, padding:10)
-        settings_button = Gtk::Button.new(label:"Settings")
+        # overlay the settings button on the top right of the map
+        settings_btn_box = Gtk::Box.new(:horizontal)
+        settings_btn_box.set_margin(5)
+        settings_btn_box.valign = :start
+        settings_btn_box.halign = :end
+        settings_button = Gtk::Button.new(label:"⚙")
+        settings_button.style_context.add_class("overlay-button")
+        settings_button.style_context.add_class("large-symbol")
         settings_button.signal_connect("clicked") { show_settings }
+        settings_btn_box.pack_start(settings_button)
+        overlay.add_overlay(settings_btn_box)
+
+        # overlay the zoom in/out buttons on the bottom middle of the map
+        zoom_btns_box = Gtk::Box.new(:horizontal)
+        zoom_btns_box.set_margin(5)
+        zoom_btns_box.valign = :end
+        zoom_btns_box.halign = :center
         zoom_in_button = Gtk::Button.new(label:"+")
+        zoom_in_button.style_context.add_class("overlay-button")
+        zoom_in_button.style_context.add_class("large-symbol")
         zoom_in_button.signal_connect("clicked") { zoom_in_clicked }
+        zoom_btns_box.pack_start(zoom_in_button, padding:5)
         zoom_out_button = Gtk::Button.new(label:"–")
+        zoom_out_button.style_context.add_class("overlay-button")
+        zoom_out_button.style_context.add_class("large-symbol")
         zoom_out_button.signal_connect("clicked") { zoom_out_clicked }
+        zoom_btns_box.pack_start(zoom_out_button, padding:5)
+        overlay.add_overlay(zoom_btns_box)
+
+        # overlay the 'set route' button on the bottom right of the map
+        route_btn_box = Gtk::Box.new(:horizontal)
+        route_btn_box.set_margin(5)
+        route_btn_box.valign = :end
+        route_btn_box.halign = :end
         set_route_button = Gtk::Button.new(label:"Set Route")
+        set_route_button.style_context.add_class("overlay-button")
         set_route_button.signal_connect("clicked") { show_set_route }
-        controls_hbox.pack_start(settings_button, expand:true, fill:true, padding:10)
-        controls_hbox.pack_start(zoom_in_button, expand:true, padding:5)
-        controls_hbox.pack_start(zoom_out_button, expand:true, padding:5)
-        controls_hbox.pack_start(set_route_button, expand:true, fill:true, padding:10)
-        controls_separator = Gtk::Separator.new(:horizontal)
-        @main_box.pack_start(controls_separator)
+        route_btn_box.pack_start(set_route_button)
+        overlay.add_overlay(route_btn_box)
+
+        # create a slategray spacer section below the map
+        map_separator = Gtk::Separator.new(:horizontal)
+        @main_box.pack_start(map_separator, fill:true)
+        spacer_box = Gtk::Box.new(:vertical)
+        spacer_box.set_size_request(0, 20)
+        spacer_box.style_context.add_class("slategray-background")
+        @main_box.pack_start(spacer_box, fill:true)
+        spacer_separator = Gtk::Separator.new(:horizontal)
+        @main_box.pack_start(spacer_separator)
 
         # setup map display in the DrawingArea
         @drawing_area.signal_connect("draw") do |widget, cairo|
@@ -195,7 +225,7 @@ class Screen
         avoid_steps_box.pack_start(avoid_steps_switch, padding:20)
         # create a 'return to map' button at the bottom of the settings box
         return_box = Gtk::Box.new(:horizontal)
-        return_box.set_margin_top(580)
+        return_box.set_margin_top(550)
         @settings_box.pack_start(return_box, fill:true)
         return_button = Gtk::Button.new(label:"Return to Map")
         return_button.signal_connect("clicked") { show_set_route }
@@ -346,14 +376,21 @@ class Screen
             if pos_y > max_y then max_y = pos_y end
         end
         # set zoom level so all nodes are visible
-        padding = 100
-        zoom_width = [max_x-min_x + 2*padding, max_y-min_y + 2*padding].max
+        padding = 150
+        diff_x = max_x-min_x
+        diff_y = max_y-min_y
+        zoom_width = [diff_x + 2*padding, diff_y + 2*padding].max
         @zoom_scale = @map_height / zoom_width * @min_zoom
         if @zoom_scale < @min_zoom then @zoom_scale = @min_zoom end
         if @zoom_scale > @max_zoom then @zoom_scale = @max_zoom end
         # set view position so it's centred on the route
         map_pos_x = min_x - padding
         map_pos_y = min_y - padding
+        if diff_y > diff_x
+            map_pos_x -= (diff_y - diff_x)/2
+        else
+            map_pos_y -= (diff_x - diff_y)/2
+        end
         @viewpos_x = -1 * map_pos_x*@zoom_scale
         @viewpos_y = -1 * map_pos_y*@zoom_scale
         change_viewpos(0, 0)
