@@ -3,10 +3,11 @@ require 'gtk3'
 # A class for the GUI and the user's interactions with the program
 class Screen
     public
-    def initialize(keywords, key_locations, generator)
+    def initialize(keywords, key_locations, map, generator)
         # logic related variables
         @keywords = keywords
         @key_locations = key_locations
+        @map = map
         @generator = generator
         @avoid_steps = false
         @location
@@ -16,6 +17,8 @@ class Screen
         # map related variables
         @viewpos_x = 0
         @viewpos_y = 0
+        @min_zoom = 0.318
+        @max_zoom = 2.0
         @zoom_scale = 0.318
         @drawing_size = 450
         @map_width = 2037.0 # cropped map: 1443
@@ -95,6 +98,10 @@ class Screen
         # setup map display in the DrawingArea
         @drawing_area.signal_connect("draw") do |widget, cairo|
             display_map(cairo)
+            if @current_event && @current_route
+              display_route(cairo)
+              zoom_to_route
+            end
         end
     end
 
@@ -229,6 +236,39 @@ class Screen
         end
     end
 
+    def display_route(cairo)
+      if !@current_event || !@current_route then return end
+      node_indexes = @current_route.get_nodes(@current_event.end_index)
+      # translate and zoom according to view position and zoom scale
+      cairo.save
+      cairo.translate(@viewpos_x, @viewpos_y)
+      cairo.scale(@zoom_scale, @zoom_scale)
+      # draw a line between each pair of nodes in the route
+      cairo.set_line_width(10)
+      cairo.set_source_rgb(1,0,1) # magenta: (1,0,1) or turquoise: (0,1,0.7) both quite visible
+      node_indexes.each_cons(2) do |node_a_idx, node_b_idx|
+        start_x = @map.nodes[node_a_idx].coords.x_value
+        start_y = @map.nodes[node_a_idx].coords.y_value
+        end_x = @map.nodes[node_b_idx].coords.x_value
+        end_y = @map.nodes[node_b_idx].coords.y_value
+        cairo.move_to(start_x, start_y)
+        cairo.line_to(end_x, end_y)
+      end
+      cairo.stroke
+      # draw a big dot at start and end, and a small dot at each node to connect the lines smoothly
+      node_indexes.each do |idx|
+        x = @map.nodes[idx].coords.x_value
+        y = @map.nodes[idx].coords.y_value
+        if idx == node_indexes[0] || idx == node_indexes[-1]
+          cairo.arc(x, y, 10, 0, 2*Math::PI)
+        else
+          cairo.arc(x, y, 5, 0, 2*Math::PI)
+        end
+        cairo.fill
+      end
+      cairo.restore
+    end
+
     def setup_mouse_events
         # setup mouse events for panning the map
         @drawing_area.add_events([Gdk::EventMask::BUTTON_PRESS_MASK, Gdk::EventMask::BUTTON_RELEASE_MASK, 
@@ -271,29 +311,33 @@ class Screen
 
     def zoom_in_clicked
         # convert center of view pos to map pos
-        map_pos_x = (@drawing_size / 2.0 - @viewpos_x) / @zoom_scale
-        map_pos_y = (@drawing_size / 2.0 - @viewpos_y) / @zoom_scale
+        map_pos_x = (@drawing_size / @max_zoom - @viewpos_x) / @zoom_scale
+        map_pos_y = (@drawing_size / @max_zoom - @viewpos_y) / @zoom_scale
         # increase scale (max 2)
         @zoom_scale = @zoom_scale * 4/3
-        if @zoom_scale > 2 then @zoom_scale = 2.0 end
+        if @zoom_scale > @max_zoom then @zoom_scale = @max_zoom end
         # convert map pos back to center of view pos
-        @viewpos_x = @drawing_size / 2.0 - map_pos_x*@zoom_scale
-        @viewpos_y = @drawing_size / 2.0 - map_pos_y*@zoom_scale
+        @viewpos_x = @drawing_size / @max_zoom - map_pos_x*@zoom_scale
+        @viewpos_y = @drawing_size / @max_zoom - map_pos_y*@zoom_scale
         @drawing_area.queue_draw
     end
 
     def zoom_out_clicked
         # convert center of view pos to map pos
-        map_pos_x = (@drawing_size / 2.0 - @viewpos_x) / @zoom_scale
-        map_pos_y = (@drawing_size / 2.0 - @viewpos_y) / @zoom_scale
+        map_pos_x = (@drawing_size / @max_zoom - @viewpos_x) / @zoom_scale
+        map_pos_y = (@drawing_size / @max_zoom - @viewpos_y) / @zoom_scale
         # decrease scale (min 0.318)
         @zoom_scale = @zoom_scale * 3/4
-        if @zoom_scale < 0.318 then @zoom_scale = 0.318 end
+        if @zoom_scale < @min_zoom then @zoom_scale = @min_zoom end
         # convert map pos back to center of view pos
-        @viewpos_x = @drawing_size / 2.0 - map_pos_x*@zoom_scale
-        @viewpos_y = @drawing_size / 2.0 - map_pos_y*@zoom_scale
+        @viewpos_x = @drawing_size / @max_zoom - map_pos_x*@zoom_scale
+        @viewpos_y = @drawing_size / @max_zoom - map_pos_y*@zoom_scale
         change_viewpos(0, 0) # make sure it doesn't zoom out past the edge of the map
         @drawing_area.queue_draw
+    end
+    
+    def zoom_to_route
+      ##############
     end
 
     def settings_state

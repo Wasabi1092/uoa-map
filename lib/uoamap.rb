@@ -86,7 +86,7 @@ def run_GUI()
 
   # create screen with keywords, key locations and route generator so it can use the generator
   Gtk.init
-  screen = Screen.new(keywords, key_locations, generator)
+  screen = Screen.new(keywords, key_locations, map, generator)
   screen.run
 end
 

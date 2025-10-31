@@ -7,6 +7,21 @@ class Route
     @paths = paths
     @start_index = start_index
   end
+
+  # returns an array of the indexes of nodes in this route, in order
+  def get_nodes(node_end_index)
+    index = node_end_index
+    order = []
+    while true do
+      order.unshift(index)
+      if index == start_index then
+        break
+      end
+      index = paths[index]
+    end
+    return order
+  end
+
   def display(node_end_index)
     printf "========\n"
     printf "Distance %f units\n", distances[node_end_index]
