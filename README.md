@@ -38,3 +38,7 @@ cd lib
 
 ruby maptest.rb
 ```
+
+## Known bugs
+
+- combo boxes for route start/end do not allow you to scroll for some reason, so it is cumbersome to select locations further down in the list. (possible by repeatedly selecting the location at the bottom of the list).

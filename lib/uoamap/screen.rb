@@ -21,8 +21,8 @@ class Screen
         @max_zoom = 2.0
         @zoom_scale = 0.318
         @drawing_size = 450
-        @map_width = 2037.0 # cropped map: 1443
-        @map_height = 1418.0 # cropped map: 814
+        @map_width = 2037.0
+        @map_height = 1418.0
         @panning = false
         # UI setup
         load_ui_styling
@@ -36,7 +36,7 @@ class Screen
 
     def run
         @window.show_all
-        set_route_state # default state is set route
+        show_set_route # default state is set route
         Gtk.main
     end
 
@@ -44,7 +44,8 @@ class Screen
     def load_ui_styling
         css_provider = Gtk::CssProvider.new
         css_provider.load_from_path("gui-resources/style.css")
-        Gtk::StyleContext.add_provider_for_screen(Gdk::Screen.default, css_provider, Gtk::StyleProvider::PRIORITY_APPLICATION)
+        Gtk::StyleContext.add_provider_for_screen(Gdk::Screen.default, css_provider, \
+            Gtk::StyleProvider::PRIORITY_APPLICATION)
     end
 
     def load_main_ui
@@ -79,13 +80,13 @@ class Screen
         controls_hbox = Gtk::Box.new(:horizontal)
         controls_vbox.pack_start(controls_hbox, fill:true, padding:10)
         settings_button = Gtk::Button.new(label:"Settings")
-        settings_button.signal_connect("clicked") { settings_state }
+        settings_button.signal_connect("clicked") { show_settings }
         zoom_in_button = Gtk::Button.new(label:"+")
         zoom_in_button.signal_connect("clicked") { zoom_in_clicked }
         zoom_out_button = Gtk::Button.new(label:"–")
         zoom_out_button.signal_connect("clicked") { zoom_out_clicked }
         set_route_button = Gtk::Button.new(label:"Set Route")
-        set_route_button.signal_connect("clicked") { set_route_state }
+        set_route_button.signal_connect("clicked") { show_set_route }
         controls_hbox.pack_start(settings_button, expand:true, fill:true, padding:10)
         controls_hbox.pack_start(zoom_in_button, expand:true, padding:5)
         controls_hbox.pack_start(zoom_out_button, expand:true, padding:5)
@@ -141,17 +142,7 @@ class Screen
         req_route_box = Gtk::Box.new(:horizontal)
         @set_route_box.pack_start(req_route_box, fill:true, padding:30)
         req_route_button = Gtk::Button.new(label:"Request Route")
-        req_route_button.signal_connect("clicked") {
-            if (location_combo.active != 0) && (destination_combo.active != 0) && (location_combo.active != destination_combo.active)
-                @location = location_combo.active_text
-                @destination = destination_combo.active_text
-                request_route
-                if @current_event && @current_route
-                    preview_state
-                    zoom_to_route
-                end
-            end
-        }
+        req_route_button.signal_connect("clicked") { req_route_clicked(location_combo, destination_combo) }
         req_route_box.pack_start(req_route_button, expand:true)
     end
 
@@ -177,9 +168,7 @@ class Screen
         cancel_box = Gtk::Box.new(:horizontal)
         @preview_box.pack_start(cancel_box, fill:true, padding:15)
         cancel_button = Gtk::Button.new(label:"Cancel")
-        cancel_button.signal_connect("clicked") {
-            set_route_state
-        }
+        cancel_button.signal_connect("clicked") { show_set_route }
         cancel_box.pack_start(cancel_button, expand:true)
     end
 
@@ -207,7 +196,7 @@ class Screen
         return_box.set_margin_top(580)
         @settings_box.pack_start(return_box, fill:true)
         return_button = Gtk::Button.new(label:"Return to Map")
-        return_button.signal_connect("clicked") { set_route_state }
+        return_button.signal_connect("clicked") { show_set_route }
         return_box.pack_start(return_button, expand:true)
     end
 
@@ -236,6 +225,7 @@ class Screen
         end
     end
 
+    # draws lines on the map between the nodes in the current route, with dots at the start and end. 
     def display_route(cairo)
         node_indexes = @current_route.get_nodes(@current_event.end_index)
         if !@current_event || !@current_route then return end
@@ -269,10 +259,10 @@ class Screen
         cairo.restore
     end
 
+    # sets up mouse events for panning the map.
     def setup_mouse_events
-        # setup mouse events for panning the map
         @drawing_area.add_events([Gdk::EventMask::BUTTON_PRESS_MASK, Gdk::EventMask::BUTTON_RELEASE_MASK, 
-        Gdk::EventMask::POINTER_MOTION_MASK])
+            Gdk::EventMask::POINTER_MOTION_MASK])
         @drawing_area.signal_connect("button-press-event") do |widget, event|
             @panning = true
             @prev_mouse_x = event.x
@@ -295,6 +285,7 @@ class Screen
         end
     end
 
+    # changes the map viewpos by specified values, keeping it within the map's edges.
     def change_viewpos(diff_x, diff_y)
         @viewpos_x += diff_x
         @viewpos_y += diff_y
@@ -335,7 +326,8 @@ class Screen
         change_viewpos(0, 0) # make sure it doesn't zoom out past the edge of the map
         @drawing_area.queue_draw
     end
-    
+
+    # zooms and sets map position to fit all nodes in the current route on the screen. 
     def zoom_to_route
         node_indexes = @current_route.get_nodes(@current_event.end_index)
         # get route's edges
@@ -365,35 +357,36 @@ class Screen
         change_viewpos(0, 0)
     end
 
-    def settings_state
-        if @window_box.children.include?(@main_box) then @window_box.remove(@main_box) end
-        @window_box.pack_start(@settings_box)
-        @window.show_all
+    # if selected start and end are valid, requests a route then shows the route preview.
+    def req_route_clicked(location_combo, destination_combo)
+        if (location_combo.active != 0) && (destination_combo.active != 0) && \
+                (location_combo.active != destination_combo.active)
+            @location = location_combo.active_text
+            @destination = destination_combo.active_text
+            request_route
+            if @current_event && @current_route
+                show_preview
+                zoom_to_route
+            else
+                # if no route, display "no route found"
+                dialog = Gtk::MessageDialog.new(parent: @window, flags: :modal, type: :info, 
+                    buttons: :ok, message: "No route found.")
+                dialog.run
+                dialog.destroy
+            end
+        else
+            # didnt choose route start/end, or start is same as end, display "Please select a valid start/end"
+            dialog = Gtk::MessageDialog.new(parent: @window, flags: :modal, type: :info, 
+                buttons: :ok, message: "Please select a valid start/end.")
+            dialog.run
+            dialog.destroy
+        end
     end
 
-    def set_route_state
-        @current_event = nil
-        @current_route = nil
-        if @window_box.children.include?(@settings_box) then @window_box.remove(@settings_box) end
-        if @main_box.children.include?(@preview_box) then @main_box.remove(@preview_box) end
-        if !@window_box.children.include?(@main_box) then @window_box.pack_start(@main_box) end
-        if !@main_box.children.include?(@set_route_box) then @main_box.pack_start(@set_route_box) end
-        @window.show_all
-    end
-
-    def preview_state
-        if @main_box.children.include?(@set_route_box) then @main_box.remove(@set_route_box) end
-        if !@main_box.children.include?(@preview_box) then @main_box.pack_start(@preview_box) end
-        @start_label.text = "Start:  #{@location}\n"
-        @end_label.text = "End:  #{@destination}\n"
-        distance = @current_route.distances[@current_event.end_index]
-        if distance < 1000 then @distance_label.text = "Estimated Distance:  #{distance.round} m\n"
-        else @distance_label.text = "Distance:  #{(distance/1000.0).round(2)} km\n" end
-    end
-
+    # uses the route generator to generate routes with the selected start and end, 
+    # setting the fastest route as current route. 
     def request_route
-        print "\n=== Requesting routes from #{@location} to #{@destination}. (avoid_steps = #{@avoid_steps}) ===\n"
-        ################ currently doesnt use avoid_steps
+        print "\n=== Requesting routes from #{@location} to #{@destination} ===\n"
         # find all entrance ids for the selected start and end
         location_ids = @keywords[@location]
         destination_ids = @keywords[@destination]
@@ -424,5 +417,34 @@ class Screen
         fastest_route.display(fastest_event.end_index)
         @current_event = fastest_event
         @current_route = fastest_route
+    end
+
+    # show the UI for the 'settings' page, hiding other pages if necessary.
+    def show_settings
+        if @window_box.children.include?(@main_box) then @window_box.remove(@main_box) end
+        @window_box.pack_start(@settings_box)
+        @window.show_all
+    end
+
+    # show the UI for the 'set route' page, hiding other pages if necessary.
+    def show_set_route
+        @current_event = nil
+        @current_route = nil
+        if @window_box.children.include?(@settings_box) then @window_box.remove(@settings_box) end
+        if @main_box.children.include?(@preview_box) then @main_box.remove(@preview_box) end
+        if !@window_box.children.include?(@main_box) then @window_box.pack_start(@main_box) end
+        if !@main_box.children.include?(@set_route_box) then @main_box.pack_start(@set_route_box) end
+        @window.show_all
+    end
+
+    # show the UI for the 'preview' page, hiding other pages if necessary.
+    def show_preview
+        if @main_box.children.include?(@set_route_box) then @main_box.remove(@set_route_box) end
+        if !@main_box.children.include?(@preview_box) then @main_box.pack_start(@preview_box) end
+        @start_label.text = "Start:  #{@location}\n"
+        @end_label.text = "End:  #{@destination}\n"
+        distance = @current_route.distances[@current_event.end_index]
+        if distance < 1000 then @distance_label.text = "Estimated Distance:  #{distance.round} m\n"
+        else @distance_label.text = "Distance:  #{(distance/1000.0).round(2)} km\n" end
     end
 end
