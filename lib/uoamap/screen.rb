@@ -85,9 +85,7 @@ class Screen
         zoom_out_button = Gtk::Button.new(label:"–")
         zoom_out_button.signal_connect("clicked") { zoom_out_clicked }
         set_route_button = Gtk::Button.new(label:"Set Route")
-        set_route_button.signal_connect("clicked") {
-            set_route_state
-        }
+        set_route_button.signal_connect("clicked") { set_route_state }
         controls_hbox.pack_start(settings_button, expand:true, fill:true, padding:10)
         controls_hbox.pack_start(zoom_in_button, expand:true, padding:5)
         controls_hbox.pack_start(zoom_out_button, expand:true, padding:5)
@@ -99,8 +97,7 @@ class Screen
         @drawing_area.signal_connect("draw") do |widget, cairo|
             display_map(cairo)
             if @current_event && @current_route
-              display_route(cairo)
-              zoom_to_route
+                display_route(cairo)
             end
         end
     end
@@ -149,7 +146,10 @@ class Screen
                 @location = location_combo.active_text
                 @destination = destination_combo.active_text
                 request_route
-                if @current_event && @current_route then preview_state end
+                if @current_event && @current_route
+                    preview_state
+                    zoom_to_route
+                end
             end
         }
         req_route_box.pack_start(req_route_button, expand:true)
@@ -237,36 +237,36 @@ class Screen
     end
 
     def display_route(cairo)
-      if !@current_event || !@current_route then return end
-      node_indexes = @current_route.get_nodes(@current_event.end_index)
-      # translate and zoom according to view position and zoom scale
-      cairo.save
-      cairo.translate(@viewpos_x, @viewpos_y)
-      cairo.scale(@zoom_scale, @zoom_scale)
-      # draw a line between each pair of nodes in the route
-      cairo.set_line_width(10)
-      cairo.set_source_rgb(1,0,1) # magenta: (1,0,1) or turquoise: (0,1,0.7) both quite visible
-      node_indexes.each_cons(2) do |node_a_idx, node_b_idx|
-        start_x = @map.nodes[node_a_idx].coords.x_value
-        start_y = @map.nodes[node_a_idx].coords.y_value
-        end_x = @map.nodes[node_b_idx].coords.x_value
-        end_y = @map.nodes[node_b_idx].coords.y_value
-        cairo.move_to(start_x, start_y)
-        cairo.line_to(end_x, end_y)
-      end
-      cairo.stroke
-      # draw a big dot at start and end, and a small dot at each node to connect the lines smoothly
-      node_indexes.each do |idx|
-        x = @map.nodes[idx].coords.x_value
-        y = @map.nodes[idx].coords.y_value
-        if idx == node_indexes[0] || idx == node_indexes[-1]
-          cairo.arc(x, y, 10, 0, 2*Math::PI)
-        else
-          cairo.arc(x, y, 5, 0, 2*Math::PI)
+        node_indexes = @current_route.get_nodes(@current_event.end_index)
+        if !@current_event || !@current_route then return end
+        # translate and zoom according to view position and zoom scale
+        cairo.save
+        cairo.translate(@viewpos_x, @viewpos_y)
+        cairo.scale(@zoom_scale, @zoom_scale)
+        # draw a line between each pair of nodes in the route
+        cairo.set_line_width(10)
+        cairo.set_source_rgb(1,0,1) # hot pink (1,0,1) or turquoise (0,1,0.7) are both quite visible
+        node_indexes.each_cons(2) do |node_a_idx, node_b_idx|
+            start_x = @map.nodes[node_a_idx].coords.x_value
+            start_y = @map.nodes[node_a_idx].coords.y_value
+            end_x = @map.nodes[node_b_idx].coords.x_value
+            end_y = @map.nodes[node_b_idx].coords.y_value
+            cairo.move_to(start_x, start_y)
+            cairo.line_to(end_x, end_y)
         end
-        cairo.fill
-      end
-      cairo.restore
+        cairo.stroke
+        # draw a big dot at start and end, and a small dot at each node to connect the lines smoothly
+        node_indexes.each do |idx|
+            x = @map.nodes[idx].coords.x_value
+            y = @map.nodes[idx].coords.y_value
+            if idx == node_indexes[0] || idx == node_indexes[-1]
+            cairo.arc(x, y, 10, 0, 2*Math::PI)
+            else
+            cairo.arc(x, y, 5, 0, 2*Math::PI)
+            end
+            cairo.fill
+        end
+        cairo.restore
     end
 
     def setup_mouse_events
@@ -311,33 +311,58 @@ class Screen
 
     def zoom_in_clicked
         # convert center of view pos to map pos
-        map_pos_x = (@drawing_size / @max_zoom - @viewpos_x) / @zoom_scale
-        map_pos_y = (@drawing_size / @max_zoom - @viewpos_y) / @zoom_scale
+        map_pos_x = (@drawing_size / 2.0 - @viewpos_x) / @zoom_scale
+        map_pos_y = (@drawing_size / 2.0 - @viewpos_y) / @zoom_scale
         # increase scale (max 2)
         @zoom_scale = @zoom_scale * 4/3
         if @zoom_scale > @max_zoom then @zoom_scale = @max_zoom end
         # convert map pos back to center of view pos
-        @viewpos_x = @drawing_size / @max_zoom - map_pos_x*@zoom_scale
-        @viewpos_y = @drawing_size / @max_zoom - map_pos_y*@zoom_scale
+        @viewpos_x = @drawing_size / 2.0 - map_pos_x*@zoom_scale
+        @viewpos_y = @drawing_size / 2.0 - map_pos_y*@zoom_scale
         @drawing_area.queue_draw
     end
 
     def zoom_out_clicked
         # convert center of view pos to map pos
-        map_pos_x = (@drawing_size / @max_zoom - @viewpos_x) / @zoom_scale
-        map_pos_y = (@drawing_size / @max_zoom - @viewpos_y) / @zoom_scale
+        map_pos_x = (@drawing_size / 2.0 - @viewpos_x) / @zoom_scale
+        map_pos_y = (@drawing_size / 2.0 - @viewpos_y) / @zoom_scale
         # decrease scale (min 0.318)
         @zoom_scale = @zoom_scale * 3/4
         if @zoom_scale < @min_zoom then @zoom_scale = @min_zoom end
         # convert map pos back to center of view pos
-        @viewpos_x = @drawing_size / @max_zoom - map_pos_x*@zoom_scale
-        @viewpos_y = @drawing_size / @max_zoom - map_pos_y*@zoom_scale
+        @viewpos_x = @drawing_size / 2.0 - map_pos_x*@zoom_scale
+        @viewpos_y = @drawing_size / 2.0 - map_pos_y*@zoom_scale
         change_viewpos(0, 0) # make sure it doesn't zoom out past the edge of the map
         @drawing_area.queue_draw
     end
     
     def zoom_to_route
-      ##############
+        node_indexes = @current_route.get_nodes(@current_event.end_index)
+        # get route's edges
+        min_x = @map.nodes[node_indexes[0]].coords.x_value
+        max_x = min_x
+        min_y = @map.nodes[node_indexes[0]].coords.y_value
+        max_y = min_y
+        node_indexes.each do |idx|
+            pos_x = @map.nodes[idx].coords.x_value
+            pos_y = @map.nodes[idx].coords.y_value
+            if pos_x < min_x then min_x = pos_x end
+            if pos_x > max_x then max_x = pos_x end
+            if pos_y < min_y then min_y = pos_y end
+            if pos_y > max_y then max_y = pos_y end
+        end
+        # set zoom level so all nodes are visible
+        padding = 100
+        zoom_width = [max_x-min_x + 2*padding, max_y-min_y + 2*padding].max
+        @zoom_scale = @map_height / zoom_width * @min_zoom
+        if @zoom_scale < @min_zoom then @zoom_scale = @min_zoom end
+        if @zoom_scale > @max_zoom then @zoom_scale = @max_zoom end
+        # set view position so it's centred on the route
+        map_pos_x = min_x - padding
+        map_pos_y = min_y - padding
+        @viewpos_x = -1 * map_pos_x*@zoom_scale
+        @viewpos_y = -1 * map_pos_y*@zoom_scale
+        change_viewpos(0, 0)
     end
 
     def settings_state
@@ -367,7 +392,7 @@ class Screen
     end
 
     def request_route
-        print "\nRequesting route from #{@location} to #{@destination}. (avoid_steps = #{@avoid_steps})\n"
+        print "\n=== Requesting routes from #{@location} to #{@destination}. (avoid_steps = #{@avoid_steps}) ===\n"
         ################ currently doesnt use avoid_steps
         # find all entrance ids for the selected start and end
         location_ids = @keywords[@location]
@@ -395,7 +420,7 @@ class Screen
                 fastest_route = route
             end
         end
-        print "Displaying fastest route\n"
+        print "=== Displaying fastest route ===\n"
         fastest_route.display(fastest_event.end_index)
         @current_event = fastest_event
         @current_route = fastest_route
