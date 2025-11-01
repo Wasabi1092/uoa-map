@@ -77,8 +77,8 @@ class Screen
         # overlay the settings button on the top right of the map
         settings_btn_box = Gtk::Box.new(:horizontal)
         settings_btn_box.set_margin(5)
-        settings_btn_box.valign = :start
-        settings_btn_box.halign = :end
+        settings_btn_box.set_valign(:start)
+        settings_btn_box.set_halign(:end)
         settings_button = Gtk::Button.new(label:"⚙")
         settings_button.style_context.add_class("overlay-button")
         settings_button.style_context.add_class("large-symbol")
@@ -89,8 +89,8 @@ class Screen
         # overlay the zoom in/out buttons on the bottom middle of the map
         zoom_btns_box = Gtk::Box.new(:horizontal)
         zoom_btns_box.set_margin(5)
-        zoom_btns_box.valign = :end
-        zoom_btns_box.halign = :center
+        zoom_btns_box.set_valign(:end)
+        zoom_btns_box.set_halign(:center)
         zoom_in_button = Gtk::Button.new(label:"+")
         zoom_in_button.style_context.add_class("overlay-button")
         zoom_in_button.style_context.add_class("large-symbol")
@@ -106,8 +106,8 @@ class Screen
         # overlay the 'set route' button on the bottom right of the map
         route_btn_box = Gtk::Box.new(:horizontal)
         route_btn_box.set_margin(5)
-        route_btn_box.valign = :end
-        route_btn_box.halign = :end
+        route_btn_box.set_valign(:end)
+        route_btn_box.set_halign(:end)
         set_route_button = Gtk::Button.new(label:"Set Route")
         set_route_button.style_context.add_class("overlay-button")
         set_route_button.signal_connect("clicked") { show_set_route }
