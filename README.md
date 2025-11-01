@@ -39,6 +39,7 @@ cd lib
 ruby maptest.rb
 ```
 
-## Known bugs
+## Known bugs/limitations
 
-- combo boxes for route start/end do not allow you to scroll for some reason, so it is cumbersome to select locations further down in the list. (possible by repeatedly selecting the location at the bottom of the list).
+- combo boxes for route start/end do not allow you to scroll for some reason, so it is cumbersome to select locations further down in the list. (but still possible by repeatedly selecting the location at the bottom of the list).
+- distance estimates are roughly correct (checked by comparing with apple maps estimates), however we do not know the actual pixel to distance scale of the map image, so so it is not exact.
