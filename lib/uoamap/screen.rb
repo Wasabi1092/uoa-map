@@ -183,13 +183,10 @@ class Screen
         preview_label = Gtk::Label.new("Route Preview")
         preview_label.style_context.add_class("title-text")
         @preview_box.pack_start(preview_label, expand:true, fill:true, padding:20)
-        # start, end, distance and time estimate labels
-        @start_label = Gtk::Label.new
-        @start_label.style_context.add_class("bold")
-        @preview_box.pack_start(@start_label, expand:true, fill:true)
-        @end_label = Gtk::Label.new
-        @end_label.style_context.add_class("bold")
-        @preview_box.pack_start(@end_label, expand:true, fill:true)
+        # start/end, distance and time estimate labels
+        @start_end_label = Gtk::Label.new
+        @start_end_label.style_context.add_class("bold")
+        @preview_box.pack_start(@start_end_label, expand:true, fill:true)
         @distance_label = Gtk::Label.new
         @distance_label.style_context.add_class("bold")
         @preview_box.pack_start(@distance_label, expand:true, fill:true)
@@ -479,8 +476,7 @@ class Screen
     # show the UI for the 'preview' page, hiding other pages if necessary.
     def show_preview
         if @main_box.children.include?(@set_route_box) then @main_box.remove(@set_route_box) end
-        @start_label.text = "Start:  #{@location}\n"
-        @end_label.text = "End:  #{@destination}\n"
+        @start_end_label.text = "From #{@location} to #{@destination}.\n"
         # metres = pixels / 3 is roughly same as apple maps estimates (don't have actual pixel to distance scale)
         distance = @current_route.distances[@current_event.end_index] / 3.0
         if distance < 1000 then @distance_label.text = "Estimated Distance:  #{distance.round} m\n"

@@ -33,8 +33,9 @@ switch {
     font-weight: bold;
 }
 button.overlay-button {
-    min-height: 40px;
-    min-width: 20px;
+    min-height: 25px;
+    min-width: 30px;
+    padding: 8px;
     border-radius: 30px;
     border: 3px solid black;
 }
