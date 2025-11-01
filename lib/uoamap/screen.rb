@@ -9,7 +9,7 @@ class Screen
         @key_locations = key_locations
         @map = map
         @generator = generator
-        @avoid_steps = false
+        @avoid_stairs = false
         @location
         @destination
         @current_event = nil
@@ -186,13 +186,16 @@ class Screen
         # start/end, distance and time estimate labels
         @start_end_label = Gtk::Label.new
         @start_end_label.style_context.add_class("bold")
-        @preview_box.pack_start(@start_end_label, expand:true, fill:true)
+        @preview_box.pack_start(@start_end_label, expand:true, fill:true, padding:5)
+        @contains_stairs_label = Gtk::Label.new
+        @contains_stairs_label.style_context.add_class("bold")
+        @preview_box.pack_start(@contains_stairs_label, expand:true, fill:true, padding:5)
         @distance_label = Gtk::Label.new
         @distance_label.style_context.add_class("bold")
-        @preview_box.pack_start(@distance_label, expand:true, fill:true)
+        @preview_box.pack_start(@distance_label, expand:true, fill:true, padding:10)
         @time_label = Gtk::Label.new
         @time_label.style_context.add_class("bold")
-        @preview_box.pack_start(@time_label, expand:true, fill:true)
+        @preview_box.pack_start(@time_label, expand:true, fill:true, padding:10)
         # cancel button
         cancel_box = Gtk::Box.new(:horizontal)
         @preview_box.pack_start(cancel_box, fill:true, padding:15)
@@ -207,19 +210,19 @@ class Screen
         settings_label = Gtk::Label.new("Settings")
         settings_label.style_context.add_class("title-text")
         @settings_box.pack_start(settings_label, expand:true, fill:true, padding:30)
-        # create another box in settings, with a label and switch for the 'avoid steps' toggle, and a done button
-        avoid_steps_box = Gtk::Box.new(:horizontal)
-        avoid_steps_box.set_halign(:center)
-        @settings_box.pack_start(avoid_steps_box, expand:true, fill:true, padding:10)
-        avoid_steps_label = Gtk::Label.new("Avoid Steps")
-        avoid_steps_label.style_context.add_class("bold")
-        avoid_steps_switch = Gtk::Switch.new
-        avoid_steps_switch.signal_connect('state-set') do |widget, state|
-            @avoid_steps = state
+        # create another box in settings, with a label and switch for the 'avoid stairs' toggle, and a done button
+        avoid_stairs_box = Gtk::Box.new(:horizontal)
+        avoid_stairs_box.set_halign(:center)
+        @settings_box.pack_start(avoid_stairs_box, expand:true, fill:true, padding:10)
+        avoid_stairs_label = Gtk::Label.new("Avoid stairs")
+        avoid_stairs_label.style_context.add_class("bold")
+        avoid_stairs_switch = Gtk::Switch.new
+        avoid_stairs_switch.signal_connect('state-set') do |widget, state|
+            @avoid_stairs = state
             false # to allow default behaviour (colour change when switched)
         end
-        avoid_steps_box.pack_start(avoid_steps_label, padding:20)
-        avoid_steps_box.pack_start(avoid_steps_switch, padding:20)
+        avoid_stairs_box.pack_start(avoid_stairs_label, padding:20)
+        avoid_stairs_box.pack_start(avoid_stairs_switch, padding:20)
         # create a 'return to map' button at the bottom of the settings box
         return_box = Gtk::Box.new(:horizontal)
         return_box.set_margin_top(550)
@@ -422,7 +425,7 @@ class Screen
     # uses the route generator to generate routes with the selected start and end, 
     # setting the fastest route as current route. 
     def request_route
-        print "\n=== Requesting routes from #{@location} to #{@destination} ===\n"
+        print "\n=== Requesting routes from #{@location} to #{@destination} (avoid stairs = #{@avoid_stairs}) ===\n"
         # find all entrance ids for the selected start and end
         location_ids = @keywords[@location]
         destination_ids = @keywords[@destination]
@@ -431,24 +434,26 @@ class Screen
         routes = []
         location_ids.each do |loc_id|
             destination_ids.each do |dest_id|
-                event = Event.new("Route request", "north_terrace", @key_locations[loc_id], @key_locations[dest_id])
-                route = @generator.calculate_route(event)
+                event = Event.new("Route request", "north_terrace", @key_locations[loc_id], @key_locations[dest_id], @avoid_stairs)
+                route = @generator.calculate_route(event, !event.avoid_stairs)
                 if route
                     events.push(event)
                     routes.push(route)
                 end
             end
         end
+        if events.empty? then return end
         # find the route with the lowest distance estimate
         fastest_event = events[0]
         fastest_route = routes[0]
         routes.each_with_index do |route, idx|
             print "Route #{idx+1} distance: #{route.distances[events[idx].end_index]}\n"
-            if route.distances[events[idx].end_index] < fastest_route.distances[events[idx].end_index]
+            if route.distances[events[idx].end_index] < fastest_route.distances[fastest_event.end_index]
                 fastest_event = events[idx]
                 fastest_route = route
             end
         end
+        if fastest_route.distances[fastest_event.end_index] == Float::INFINITY then return end
         print "=== Displaying fastest route ===\n"
         fastest_route.display(fastest_event.end_index)
         @current_event = fastest_event
@@ -476,14 +481,19 @@ class Screen
     # show the UI for the 'preview' page, hiding other pages if necessary.
     def show_preview
         if @main_box.children.include?(@set_route_box) then @main_box.remove(@set_route_box) end
-        @start_end_label.text = "From #{@location} to #{@destination}.\n"
+        @start_end_label.text = "From #{@location} to #{@destination}."
+        if @avoid_stairs
+            @contains_stairs_label.text = "(no stairs)\n"
+        else
+            @contains_stairs_label.text = "\n"
+        end
         # metres = pixels / 3 is roughly same as apple maps estimates (don't have actual pixel to distance scale)
         distance = @current_route.distances[@current_event.end_index] / 3.0
-        if distance < 1000 then @distance_label.text = "Estimated Distance:  #{distance.round} m\n"
-        else @distance_label.text = "Distance:  #{(distance/1000.0).round(2)} km\n" end
+        if distance < 1000 then @distance_label.text = "Distance:  #{distance.round} m"
+        else @distance_label.text = "Distance:  #{(distance/1000.0).round(2)} km" end
         walking_speed = 1.4 # m/s
         minutes = distance / walking_speed / 60
-        @time_label.text = "Time Estimate: #{minutes.round} minutes\n"
+        @time_label.text = "Time Estimate: #{minutes.round} minutes"
         if !@main_box.children.include?(@preview_box) then @main_box.pack_start(@preview_box) end
     end
 end

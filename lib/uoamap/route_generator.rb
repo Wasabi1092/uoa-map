@@ -22,21 +22,22 @@ class RouteGenerator
   end
 
   # A function to calculate the shortest route with the given index
-  def calculate_route(event)
+  def calculate_route(event, stairs=1)
     # name: the name of the map to lookup
     # start_index: the index of the starting node
     # end_index: the index of the end node
+    # stairs: a bool which determines whether stairs should be used (True) or ignored (False)
     # returns [distance, path[]]
     # distance is a float, rounded to 1 d.p.
     # path[] is an array of indexes, which each value referencing the index of the previous node in the shortest path traversal
     map = event.map
     start_index, end_index = event.start_index, event.end_index
-    result = @routes[[map, start_index, end_index]]
+    result = @routes[[map, start_index, end_index, stairs]]
     if result != nil then
       return result
     end
     map_object = @maps[map]
-    @routes[[map, start_index, end_index]] = result = map_object.shortest_path(event)
+    @routes[[map, start_index, end_index, stairs]] = result = map_object.shortest_path(event, stairs)
     return result
   end
 
