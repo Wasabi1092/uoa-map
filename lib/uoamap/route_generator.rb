@@ -10,7 +10,7 @@ class RouteGenerator
     # all values are empty because allowing maps and names to be passed immediately would be too messy
     @maps = {}
     @routes = {}
-    @walk_speed = 2.0
+    @walk_speed = 1.65 # metres per second
   end
 
   # add_map binds a map to a name
@@ -54,7 +54,7 @@ class RouteGenerator
 
     # return value: time needed for walking from start node to end node (estimated)
     route = calculate_route(name, start_index, end_index)
-    return route[end_index] * @walk_speed
+    return route[end_index] /(3 * @walk_speed)
   end
 
   # A function to return all maps
