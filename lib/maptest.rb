@@ -78,7 +78,7 @@ def test_map ()
   generator.add_map("north_terrace", map)
 
   # now we need a test event just to hold the values here
-  test_event = Event.new("Event", "north_terrace", key_locations["hub_w1"], key_locations["darling_west"])
+  test_event = Event.new("Event", "north_terrace", key_locations["hub_w1"], key_locations["darling_west"], false)
 
   # then we can pass the event into the generator to calculate the route
   route = generator.calculate_route(test_event)
