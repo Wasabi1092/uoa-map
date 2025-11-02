@@ -65,3 +65,7 @@ ruby uoamap.rb
 - ID 10: Building Entrances Display
 - ID 14: Estimated Travel Time
 - ID 17: Offline Map
+
+# Prototype Demonstration YouTube Link
+
+https://youtu.be/TFdiCBC7p78
